@@ -3,6 +3,7 @@ use std::{marker::PhantomData, ops::ControlFlow, sync::Arc};
 use anyhow::{Context, Result};
 use scylla::{frame::response::result::CqlValue, prepared_statement::PreparedStatement, Session};
 
+
 use crate::settings::CassandraStressSettings;
 
 use super::{
@@ -30,6 +31,7 @@ pub type CounterReadOperationFactory = GenericReadOperationFactory<ExistsRowVali
 
 impl<V: RowValidator> ReadOperation<V> {
     async fn do_execute(&self, row: &[CqlValue]) -> Result<ControlFlow<()>> {
+        // This is the key/val we expect.
         let pk = &row[0];
 
         let result = self.session.execute(&self.statement, (pk,)).await;
@@ -54,6 +56,30 @@ impl<V: RowValidator> ReadOperation<V> {
 
         Ok(ControlFlow::Continue(()))
     }
+
+    async fn do_execute_in(&self, mut row: Vec<Vec<CqlValue>>) -> Result<ControlFlow<()>> {
+        let mut key = Vec::new();
+        // TODO validate? Commented as no-op atm
+        // let mut val = Vec::new();
+
+        for i in row.iter_mut() {
+            key.push(&i[0]);
+            // val.push(&i[1]);
+        }
+
+        let result = self.session.execute(&self.statement, (key.clone(),)).await?;
+        
+        // Rather than validating the result, we want to know if we got the expected number of
+        // rows. If we didn't, then we know we've hit a missing key.
+        //
+        // Note, we don't do any checking on the number of operations "left to complete". 
+        for row in result.rows.unwrap() {
+            println!("{:?}", row);
+        }
+        panic!("Fun!");
+        
+        Ok(ControlFlow::Continue(()))
+    }
 }
 
 impl<V: RowValidator> CassandraStressOperation for ReadOperation<V> {
@@ -61,6 +87,10 @@ impl<V: RowValidator> CassandraStressOperation for ReadOperation<V> {
 
     async fn execute(&self, row: &[CqlValue]) -> Result<ControlFlow<()>> {
         self.do_execute(row).await
+    }
+
+    async fn execute_in(&self, rows: Vec<Vec<CqlValue>>) -> Result<ControlFlow<()>> {
+        self.do_execute_in(rows).await
     }
 
     fn generate_row(&self, row_generator: &mut RowGenerator) -> Vec<CqlValue> {
@@ -86,7 +116,7 @@ impl<V: RowValidator> GenericReadOperationFactory<V> {
         session: Arc<Session>,
         stressed_table_name: &'static str,
     ) -> Result<Self> {
-        let statement_str = format!("SELECT * FROM {} WHERE KEY=?", stressed_table_name);
+        let statement_str = format!("SELECT * FROM {} WHERE KEY IN ?", stressed_table_name);
         let mut statement = session
             .prepare(statement_str)
             .await

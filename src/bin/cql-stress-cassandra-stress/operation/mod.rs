@@ -53,6 +53,7 @@ pub trait CassandraStressOperation: Sync + Send {
     type Factory: CassandraStressOperationFactory<Operation = Self>;
 
     fn execute(&self, row: &[CqlValue]) -> impl Future<Output = Result<ControlFlow<()>>> + Send;
+    fn execute_in(&self, rows: Vec<Vec<CqlValue>>) -> impl Future<Output = Result<ControlFlow<()>>> + Send;
     fn generate_row(&self, row_generator: &mut RowGenerator) -> Vec<CqlValue>;
 }
 
@@ -108,6 +109,35 @@ impl<O: CassandraStressOperation> GenericCassandraStressOperation<O> {
 
         op_result
     }
+
+    async fn execute_in(&mut self, ctx: &OperationContext) -> Result<ControlFlow<()>> {
+        if self
+            .max_operations
+            .is_some_and(|max_ops| ctx.operation_id >= max_ops)
+        {
+            return Ok(ControlFlow::Break(()));
+        }
+
+        let mut rows = Vec::new();
+        for _i in 0..16 {
+                // TODO: In this case we don't re-execute cached results which might have failed
+                rows.push(self.cs_operation.generate_row(&mut self.workload));
+        }
+
+        let op_result = self.cs_operation.execute_in(rows).await;
+        self.stats
+            .get_shard_mut()
+            .account_operation(ctx, &op_result);
+
+        if op_result.is_ok() {
+            // Operation was successful - we will generate new row
+            // for the next operation.
+            self.cached_row = None;
+        }
+
+        op_result
+    }
+
 }
 
 pub struct GenericCassandraStressOperationFactory<O: CassandraStressOperation> {

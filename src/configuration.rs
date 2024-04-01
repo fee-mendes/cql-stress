@@ -116,7 +116,7 @@ macro_rules! make_runnable {
         impl$(<$($targ: $tbound),+>)? $crate::configuration::Operation for $op$(<$($targ),*>)? {
             async fn run(&mut self, mut session: $crate::run::WorkerSession) -> anyhow::Result<()> {
                 while let Some(ctx) = session.start_operation().await {
-                    let result = self.execute(&ctx).await;
+                    let result = self.execute_in(&ctx).await;
                     if let std::ops::ControlFlow::Break(_) = session.end_operation(result)? {
                         return Ok(());
                     }

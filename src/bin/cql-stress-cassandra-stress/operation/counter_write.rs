@@ -43,6 +43,11 @@ impl CassandraStressOperation for CounterWriteOperation {
         Ok(ControlFlow::Continue(()))
     }
 
+    async fn execute_in(&self, _row: Vec<Vec<CqlValue>>) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
+    }
+
+
     fn generate_row(&self, row_generator: &mut RowGenerator) -> Vec<CqlValue> {
         let mut values: Vec<CqlValue> = Vec::with_capacity(self.non_pk_columns_count + 1);
 

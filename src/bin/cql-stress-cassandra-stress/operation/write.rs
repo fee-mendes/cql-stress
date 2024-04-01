@@ -38,6 +38,11 @@ impl CassandraStressOperation for WriteOperation {
         Ok(ControlFlow::Continue(()))
     }
 
+   async fn execute_in(&self, _row: Vec<Vec<CqlValue>>) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
+    }
+
+
     fn generate_row(&self, row_generator: &mut RowGenerator) -> Vec<CqlValue> {
         row_generator.generate_row()
     }

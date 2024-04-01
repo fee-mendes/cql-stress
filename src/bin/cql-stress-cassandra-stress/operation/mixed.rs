@@ -131,10 +131,13 @@ impl MixedOperation {
 
         let result = match &self.current_operation {
             MixedSubcommand::Read => {
-                let row = self
-                    .cached_row
-                    .get_or_insert_with(|| self.read_operation.generate_row(&mut self.workload));
-                self.read_operation.execute(row).await
+               let mut rows = Vec::new();
+                for _i in 0..16 {
+                // TODO: In this case we don't re-execute cached results which might have failed
+                rows.push(self.read_operation.generate_row(&mut self.workload));
+            }
+
+                self.read_operation.execute_in(rows).await
             }
             MixedSubcommand::CounterRead => {
                 let row = self.cached_row.get_or_insert_with(|| {
@@ -166,4 +169,60 @@ impl MixedOperation {
 
         result
     }
+
+        async fn execute_in(&mut self, ctx: &OperationContext) -> Result<ControlFlow<()>> {
+        if self
+            .max_operations
+            .is_some_and(|max_ops| ctx.operation_id >= max_ops)
+        {
+            return Ok(ControlFlow::Break(()));
+        }
+
+        if self.current_operation_remaining == 0 {
+            self.current_operation = self.operation_ratio.sample();
+            self.current_operation_remaining =
+                (self.clustering_distribution.next_i64() as usize).max(1);
+        }
+
+        let result = match &self.current_operation {
+            MixedSubcommand::Read => {
+               let mut rows = Vec::new();
+                for _i in 0..16 {
+                // TODO: In this case we don't re-execute cached results which might have failed
+                rows.push(self.read_operation.generate_row(&mut self.workload));
+            }
+
+                self.read_operation.execute_in(rows).await
+            }
+            MixedSubcommand::CounterRead => {
+                let row = self.cached_row.get_or_insert_with(|| {
+                    self.counter_read_operation.generate_row(&mut self.workload)
+                });
+                self.counter_read_operation.execute(row).await
+            }
+            MixedSubcommand::Write => {
+                let row = self
+                    .cached_row
+                    .get_or_insert_with(|| self.write_operation.generate_row(&mut self.workload));
+                self.write_operation.execute(row).await
+            }
+            MixedSubcommand::CounterWrite => {
+                let row = self.cached_row.get_or_insert_with(|| {
+                    self.counter_write_operation
+                        .generate_row(&mut self.workload)
+                });
+                self.counter_write_operation.execute(row).await
+            }
+        };
+
+        self.stats.get_shard_mut().account_operation(ctx, &result);
+
+        if result.is_ok() {
+            self.current_operation_remaining -= 1;
+            self.cached_row = None;
+        }
+
+        result
+    }
+
 }
