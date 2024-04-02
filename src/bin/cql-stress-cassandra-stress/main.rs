@@ -171,15 +171,16 @@ async fn create_schema(session: &Session, settings: &CassandraStressSettings) ->
         )
         .await
         .context("Failed to create standard table")?;
-    session
-        .query(
-            settings
-                .schema
-                .construct_counter_table_creation_query(&settings.column.columns),
-            (),
-        )
-        .await
-        .context("Failed to create counter table")?;
+    // FM - we don't need this
+    // session
+    //    .query(
+    //        settings
+    //            .schema
+    //            .construct_counter_table_creation_query(&settings.column.columns),
+    //        (),
+    //    )
+    //    .await
+    //    .context("Failed to create counter table")?;
     Ok(())
 }
 
