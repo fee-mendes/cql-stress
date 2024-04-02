@@ -73,10 +73,14 @@ impl<V: RowValidator> ReadOperation<V> {
         // rows. If we didn't, then we know we've hit a missing key.
         //
         // Note, we don't do any checking on the number of operations "left to complete". 
-        for row in result.rows.unwrap() {
-            println!("{:?}", row);
+        let mut rowcount = 0;
+        for _row in result.rows.unwrap() {
+            rowcount += 1;
         }
-        panic!("Fun!");
+
+        if rowcount != 16 {
+            println!("Expected 16 rows, but got {} rows? Key list: {:?}", rowcount, key);
+        }
         
         Ok(ControlFlow::Continue(()))
     }

@@ -135,9 +135,9 @@ impl SchemaOption {
         self.construct_table_creation_query_with("standard1", "blob", column_names)
     }
 
-    pub fn construct_counter_table_creation_query(&self, column_names: &[String]) -> String {
-        self.construct_table_creation_query_with("counter1", "counter", column_names)
-    }
+    // pub fn construct_counter_table_creation_query(&self, column_names: &[String]) -> String {
+    //    self.construct_table_creation_query_with("counter1", "counter", column_names)
+    // }
 }
 
 struct SchemaParamHandles {

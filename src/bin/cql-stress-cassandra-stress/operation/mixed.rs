@@ -115,6 +115,7 @@ impl MixedOperationFactory {
 
 make_runnable!(MixedOperation);
 impl MixedOperation {
+    #[allow(dead_code)]
     async fn execute(&mut self, ctx: &OperationContext) -> Result<ControlFlow<()>> {
         if self
             .max_operations

@@ -84,6 +84,7 @@ pub struct GenericCassandraStressOperation<O: CassandraStressOperation> {
 
 make_runnable!(GenericCassandraStressOperation<O: CassandraStressOperation>);
 impl<O: CassandraStressOperation> GenericCassandraStressOperation<O> {
+    #[allow(dead_code)]
     async fn execute(&mut self, ctx: &OperationContext) -> Result<ControlFlow<()>> {
         if self
             .max_operations
